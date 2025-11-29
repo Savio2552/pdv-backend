@@ -16,7 +16,10 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<User | null> {
-    const user = await this.usersRepo.findOne({ where: { email } });
+    const user = await this.usersRepo.findOne({ 
+      where: { email },
+      relations: ['company']
+    });
     if (!user) return null;
     const ok = await bcrypt.compare(pass, user.passwordHash);
     return ok ? user : null;
@@ -26,7 +29,17 @@ export class AuthService {
     const user = await this.validateUser(email, password);
     if (!user) throw new UnauthorizedException('Credenciais inválidas');
 
-    const payload = { email: user.email, sub: user.id, role: user.role };
+    if (user.company && user.company.status !== 'active') {
+      throw new UnauthorizedException('Empresa inativa ou suspensa');
+    }
+
+    const payload = { 
+      email: user.email, 
+      sub: user.id, 
+      role: user.role,
+      companyId: user.companyId,
+      type: 'user'
+    };
 
     const accessToken = this.jwtService.sign(payload);
     const refreshPlain = uuidv4();
@@ -44,6 +57,12 @@ export class AuthService {
       accessToken,
       refreshToken: refreshPlain,
       expiresIn: 15 * 60,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      }
     };
   }
 
@@ -53,9 +72,23 @@ export class AuthService {
     for (const rt of rts) {
       const ok = await bcrypt.compare(refreshPlain, rt.token);
       if (ok && rt.expiresAt > new Date()) {
-        const user = await this.usersRepo.findOne({ where: { id: userId } });
+        const user = await this.usersRepo.findOne({ 
+          where: { id: userId },
+          relations: ['company']
+        });
         if (!user) throw new UnauthorizedException('Usuário não encontrado');
-        const payload = { email: user.email, sub: user.id, role: user.role };
+        
+        if (user.company && user.company.status !== 'active') {
+          throw new UnauthorizedException('Empresa inativa ou suspensa');
+        }
+        
+        const payload = { 
+          email: user.email, 
+          sub: user.id, 
+          role: user.role,
+          companyId: user.companyId,
+          type: 'user'
+        };
         const accessToken = this.jwtService.sign(payload);
         return { accessToken, expiresIn: 15 * 60 };
       }

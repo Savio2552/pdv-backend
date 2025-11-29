@@ -11,8 +11,14 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const typeorm_1 = require("@nestjs/typeorm");
 const auth_module_1 = require("./auth/auth.module");
+const admin_module_1 = require("./admin/admin.module");
+const companies_module_1 = require("./modules/companies/companies.module");
+const dashboard_module_1 = require("./modules/dashboard/dashboard.module");
 const user_entity_1 = require("./auth/entities/user.entity");
 const refresh_token_entity_1 = require("./auth/entities/refresh-token.entity");
+const company_entity_1 = require("./auth/entities/company.entity");
+const admin_entity_1 = require("./auth/entities/admin.entity");
+const admin_refresh_token_entity_1 = require("./auth/entities/admin-refresh-token.entity");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -29,11 +35,14 @@ exports.AppModule = AppModule = __decorate([
                     username: configService.get('DB_USERNAME'),
                     password: configService.get('DB_PASSWORD'),
                     database: configService.get('DB_DATABASE'),
-                    entities: [user_entity_1.User, refresh_token_entity_1.RefreshToken],
+                    entities: [user_entity_1.User, refresh_token_entity_1.RefreshToken, company_entity_1.Company, admin_entity_1.Admin, admin_refresh_token_entity_1.AdminRefreshToken],
                     synchronize: true,
                 }),
             }),
             auth_module_1.AuthModule,
+            admin_module_1.AdminModule,
+            companies_module_1.CompaniesModule,
+            dashboard_module_1.DashboardModule,
         ],
     })
 ], AppModule);

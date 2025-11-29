@@ -12,6 +12,12 @@ export declare class AuthService {
         accessToken: string;
         refreshToken: string;
         expiresIn: number;
+        user: {
+            id: string;
+            email: string;
+            name: string;
+            role: string;
+        };
     }>;
     refreshToken(userId: string, refreshPlain: string): Promise<{
         accessToken: string;
