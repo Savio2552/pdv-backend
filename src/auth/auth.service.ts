@@ -29,15 +29,20 @@ export class AuthService {
     const user = await this.validateUser(email, password);
     if (!user) throw new UnauthorizedException('Credenciais inválidas');
 
-    if (user.company && user.company.status !== 'active') {
+    if (!user.companyId) {
+      throw new UnauthorizedException('Usuário não está vinculado a nenhuma empresa');
+    }
+
+    if (!user.company) {
+      throw new UnauthorizedException('Empresa não encontrada');
+    }
+
+    if (user.company.status !== 'active') {
       throw new UnauthorizedException('Empresa inativa ou suspensa');
     }
 
     const payload = { 
-      email: user.email, 
-      sub: user.id, 
-      role: user.role,
-      companyId: user.companyId,
+      sub: user.id,
       type: 'user'
     };
 
@@ -62,6 +67,8 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
+        companyId: user.companyId,
+        companyName: user.company.name,
       }
     };
   }
@@ -69,6 +76,7 @@ export class AuthService {
   async refreshToken(userId: string, refreshPlain: string) {
     const rts = await this.rtRepo.find({ where: { userId }, order: { createdAt: 'DESC' } });
     if (!rts || rts.length === 0) throw new UnauthorizedException();
+    
     for (const rt of rts) {
       const ok = await bcrypt.compare(refreshPlain, rt.token);
       if (ok && rt.expiresAt > new Date()) {
@@ -82,15 +90,30 @@ export class AuthService {
           throw new UnauthorizedException('Empresa inativa ou suspensa');
         }
         
+        await this.rtRepo.remove(rt);
+        
         const payload = { 
-          email: user.email, 
-          sub: user.id, 
-          role: user.role,
-          companyId: user.companyId,
+          sub: user.id,
           type: 'user'
         };
+        
         const accessToken = this.jwtService.sign(payload);
-        return { accessToken, expiresIn: 15 * 60 };
+        const newRefreshPlain = uuidv4();
+        const newHashed = await bcrypt.hash(newRefreshPlain, 10);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        const newRt = this.rtRepo.create({
+          token: newHashed,
+          userId: user.id,
+          expiresAt,
+        });
+        await this.rtRepo.save(newRt);
+        
+        return { 
+          accessToken, 
+          refreshToken: newRefreshPlain,
+          expiresIn: 15 * 60 
+        };
       }
     }
     throw new UnauthorizedException();

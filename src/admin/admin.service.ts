@@ -27,9 +27,7 @@ export class AdminService {
     if (!admin) throw new UnauthorizedException('Credenciais inválidas');
 
     const payload = { 
-      email: admin.email, 
-      sub: admin.id, 
-      role: admin.role,
+      sub: admin.id,
       type: 'admin'
     };
 
@@ -72,14 +70,30 @@ export class AdminService {
         const admin = await this.adminRepo.findOne({ where: { id: adminId } });
         if (!admin) throw new UnauthorizedException('Admin não encontrado');
         
+        await this.rtRepo.remove(rt);
+        
         const payload = { 
-          email: admin.email, 
-          sub: admin.id, 
-          role: admin.role,
+          sub: admin.id,
           type: 'admin'
         };
+        
         const accessToken = this.jwtService.sign(payload);
-        return { accessToken, expiresIn: 15 * 60 };
+        const newRefreshPlain = uuidv4();
+        const newHashed = await bcrypt.hash(newRefreshPlain, 10);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        
+        const newRt = this.rtRepo.create({
+          token: newHashed,
+          adminId: admin.id,
+          expiresAt,
+        });
+        await this.rtRepo.save(newRt);
+        
+        return { 
+          accessToken, 
+          refreshToken: newRefreshPlain,
+          expiresIn: 15 * 60 
+        };
       }
     }
     throw new UnauthorizedException();

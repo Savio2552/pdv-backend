@@ -77,14 +77,17 @@ let AuthService = class AuthService {
         const user = await this.validateUser(email, password);
         if (!user)
             throw new common_1.UnauthorizedException('Credenciais inválidas');
-        if (user.company && user.company.status !== 'active') {
+        if (!user.companyId) {
+            throw new common_1.UnauthorizedException('Usuário não está vinculado a nenhuma empresa');
+        }
+        if (!user.company) {
+            throw new common_1.UnauthorizedException('Empresa não encontrada');
+        }
+        if (user.company.status !== 'active') {
             throw new common_1.UnauthorizedException('Empresa inativa ou suspensa');
         }
         const payload = {
-            email: user.email,
             sub: user.id,
-            role: user.role,
-            companyId: user.companyId,
             type: 'user'
         };
         const accessToken = this.jwtService.sign(payload);
@@ -106,6 +109,8 @@ let AuthService = class AuthService {
                 email: user.email,
                 name: user.name,
                 role: user.role,
+                companyId: user.companyId,
+                companyName: user.company.name,
             }
         };
     }
@@ -125,15 +130,26 @@ let AuthService = class AuthService {
                 if (user.company && user.company.status !== 'active') {
                     throw new common_1.UnauthorizedException('Empresa inativa ou suspensa');
                 }
+                await this.rtRepo.remove(rt);
                 const payload = {
-                    email: user.email,
                     sub: user.id,
-                    role: user.role,
-                    companyId: user.companyId,
                     type: 'user'
                 };
                 const accessToken = this.jwtService.sign(payload);
-                return { accessToken, expiresIn: 15 * 60 };
+                const newRefreshPlain = (0, uuid_1.v4)();
+                const newHashed = await bcrypt.hash(newRefreshPlain, 10);
+                const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                const newRt = this.rtRepo.create({
+                    token: newHashed,
+                    userId: user.id,
+                    expiresAt,
+                });
+                await this.rtRepo.save(newRt);
+                return {
+                    accessToken,
+                    refreshToken: newRefreshPlain,
+                    expiresIn: 15 * 60
+                };
             }
         }
         throw new common_1.UnauthorizedException();

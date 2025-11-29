@@ -21,15 +21,55 @@ let AuthController = class AuthController {
     constructor(auth) {
         this.auth = auth;
     }
-    async login(body) {
-        return this.auth.login(body.email, body.password);
+    async login(body, response) {
+        const result = await this.auth.login(body.email, body.password);
+        const isProduction = process.env.NODE_ENV === 'production';
+        response.cookie('access_token', result.accessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000,
+        });
+        response.cookie('refresh_token', result.refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+        return response.json({
+            user: result.user,
+            expiresIn: result.expiresIn
+        });
     }
-    async refresh(body) {
-        return this.auth.refreshToken(body.userId, body.refreshToken);
+    async refresh(request, response) {
+        const refreshToken = request.cookies?.refresh_token;
+        const userId = request.body.userId;
+        if (!refreshToken || !userId) {
+            return response.status(401).json({ message: 'Token não fornecido' });
+        }
+        const result = await this.auth.refreshToken(userId, refreshToken);
+        const isProduction = process.env.NODE_ENV === 'production';
+        response.cookie('access_token', result.accessToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'strict',
+            maxAge: 15 * 60 * 1000,
+        });
+        response.cookie('refresh_token', result.refreshToken, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'strict',
+            maxAge: 30 * 24 * 60 * 60 * 1000,
+        });
+        return response.json({
+            expiresIn: 15 * 60
+        });
     }
-    async logout(body) {
+    async logout(body, response) {
         await this.auth.revokeRefreshTokens(body.userId);
-        return { ok: true };
+        response.clearCookie('access_token');
+        response.clearCookie('refresh_token');
+        return response.json({ ok: true });
     }
     async createTest(body) {
         return this.auth.createUser(body.email, body.password);
@@ -39,22 +79,25 @@ exports.AuthController = AuthController;
 __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [login_dto_1.LoginDto]),
+    __metadata("design:paramtypes", [login_dto_1.LoginDto, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 __decorate([
     (0, common_1.Post)('refresh'),
-    __param(0, (0, common_1.Body)()),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refresh", null);
 __decorate([
     (0, common_1.Post)('logout'),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Res)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object]),
+    __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 __decorate([

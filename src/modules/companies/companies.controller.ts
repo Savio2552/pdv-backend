@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards } from '@n
 import { CompaniesService } from './companies.service';
 import { CreateCompanyDto } from './dto/create-company.dto';
 import { UpdateCompanyDto } from './dto/update-company.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 
 @Controller('companies')
 export class CompaniesController {
@@ -35,5 +36,20 @@ export class CompaniesController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.companiesService.remove(id);
+  }
+
+  @Post(':id/users')
+  createUser(@Param('id') id: string, @Body() createUserDto: CreateUserDto) {
+    return this.companiesService.createUser(id, createUserDto);
+  }
+
+  @Get(':id/users')
+  getCompanyUsers(@Param('id') id: string) {
+    return this.companiesService.getCompanyUsers(id);
+  }
+
+  @Delete('users/:userId')
+  deleteUser(@Param('userId') userId: string) {
+    return this.companiesService.deleteUser(userId);
   }
 }

@@ -17,10 +17,13 @@ export declare class AuthService {
             email: string;
             name: string;
             role: string;
+            companyId: string;
+            companyName: string;
         };
     }>;
     refreshToken(userId: string, refreshPlain: string): Promise<{
         accessToken: string;
+        refreshToken: string;
         expiresIn: number;
     }>;
     revokeRefreshTokens(userId: string): Promise<void>;
